@@ -12,13 +12,13 @@
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:context="com.example.andrewlewis.to_doly.MainActivity"
     tools:showIn="@layout/activity_main"
-    android:background="#00ff00">
+    android:background="#dec442">
 
     <ListView
         android:id="@+id/list_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="#ff9432"
+        android:background="#dec442"
         android:layout_below="@+id/thisisthetextviewid">
     </ListView>
 

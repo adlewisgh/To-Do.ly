@@ -13,13 +13,20 @@ import android.view.View;
 import android.view.Menu;
 import android.widget.AdapterView;
 import android.widget.ListView;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private ListView notesList;
@@ -27,6 +34,17 @@ public class MainActivity extends AppCompatActivity {
     private TodoArrayAdapter todoArrayAdapter;
     private ArrayList<TodoConstructor> toDoArray;
     private SharedPreferences toDoPrefs;
+    private int catNumber;
+    String filename = "TodoItemsFile";
+    Gson gson = new Gson();
+    List<TodoConstructor> notesLists = new ArrayList<>();
+    // Stores categories + notes to pass to our custom adapter
+    //Custom adapter to display categories and notes to list view
+
+    private List <Category> categories = new ArrayList<>();
+
+    private ArrayList <Object>allItems = new ArrayList<>();
+    private CategoryAdapter categoryAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,26 +55,25 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
         toDoPrefs = getPreferences(Context.MODE_PRIVATE);
+        gson = new Gson();
         setupNotes();
 
         //hook up our UI elements to our Java code
         //this was our simple adapter using a simple string array as data and a simple resource
+
+        //MIGHT NEED TO CHANGE THIS!!
         notesList = (ListView) findViewById(R.id.list_view);
+        updateAllItems();
 
-
-        //This is our complex, custom adapter using Notes class as data and a complex resource.
-        todoArrayAdapter = new TodoArrayAdapter(this, R.layout.todo_list_items, toDoArray);
-        notesList.setAdapter(todoArrayAdapter);
-        //CoordinatorLayout activityMain = (CoordinatorLayout) findViewById(R.id.content_main);
-        //View contentview = getLayoutInflater().inflate(R.layout.content_main,activityMain,false);
+        categoryAdapter = new CategoryAdapter(this,allItems);
+        notesList.setAdapter(categoryAdapter);
 
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
+
                 Intent intent = new Intent(MainActivity.this, TodoDetailActivity.class);
 
                 intent.putExtra("noteTitle", "");
@@ -74,19 +91,19 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 
-                TodoConstructor todoConstructor = toDoArray.get(position);
+                allItems.get(position);
+                TodoConstructor note = (TodoConstructor) allItems.get(position);
 
                 Intent intent = new Intent(MainActivity.this, TodoDetailActivity.class);
 
-                intent.putExtra("noteTitle", todoConstructor.getNoteTitle());
-                intent.putExtra("completionDueTime", todoConstructor.getDateModified());
-                intent.putExtra("category", todoConstructor.getCategory());
-                intent.putExtra("DueDate", todoConstructor.getDueDate());
-                intent.putExtra("DueTime", todoConstructor.getDueTime());
+                intent.putExtra("noteTitle", note.getNoteTitle());
+                intent.putExtra("completionDueTime", note.getDateModified());
+                intent.putExtra("category", note.getCategory());
+                intent.putExtra("DueDate", note.getDueDate());
+                intent.putExtra("DueTime", note.getDueTime());
 
                 intent.putExtra("Index", position);
 
-                //startActivity(intent);
                 startActivityForResult(intent, 1);
 
             }
@@ -101,10 +118,13 @@ public class MainActivity extends AppCompatActivity {
                 alertBuilder.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        TodoConstructor note = toDoArray.get(position);
-                        deleteFile("##" + note.getNoteTitle());
-                        toDoArray.remove(position);
-                        todoArrayAdapter.updateAdapter(toDoArray);
+                        TodoConstructor note = (TodoConstructor) allItems.get(position);
+                        categories.get(catNumber).notes.remove(note);
+                        allItems.remove(position);
+                        deleteFile(note.getNoteTitle());
+                        writeTodos();
+                        categoryAdapter.notifyDataSetChanged();
+                        writeTodos();
                     }
                 });
                 alertBuilder.create().show();
@@ -113,94 +133,101 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    //create adapter and wire it to the listView
-    //notesList.setAdapter(new ArrayAdapter<>(this,R.layout.notes_textview_list_item,notes));
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK) {
             int index = data.getIntExtra("Index", -1);
-            TodoConstructor todoConstructor = new TodoConstructor(false, data.getStringExtra("noteTitle"),data.getStringExtra("DueDate"), new Date(),
+
+            TodoConstructor note = new TodoConstructor(false, data.getStringExtra("noteTitle"),data.getStringExtra("DueDate"), new Date(),
                     data.getStringExtra("category"), data.getStringExtra("DueTime"));
 
-            if (index == -1) {
-                toDoArray.add(todoConstructor);
-                writeFile(todoConstructor);
-            } else {
-                TodoConstructor oldNote = toDoArray.get(index);
-                toDoArray.set(index, todoConstructor);
-                if (!oldNote.getNoteTitle().equals(todoConstructor.getNoteTitle())) {
-                    File oldFile = new File(this.getFilesDir(), "##" + oldNote.getNoteTitle());
-                    File newFile = new File(this.getFilesDir(), "##" + todoConstructor.getNoteTitle());
-                    oldFile.renameTo(newFile);
-                }
-            }
 
-            Collections.sort(toDoArray);
-            todoArrayAdapter.updateAdapter(toDoArray);
+                switch (data.getStringExtra("category")) {
+                    case "home":
+                        catNumber = 0;
+                        break;
+                    case "work":
+                        catNumber = 1;
+                        break;
+                    case "personal":
+                        catNumber = 2;
+                        break;
+
+
+            }
+            categories.get(catNumber).notes.add(note);
+
+            writeTodos();
+            updateAllItems();
+            categoryAdapter.notifyDataSetChanged();
+
+            writeTodos();
         }
     }
 
     private void setupNotes() {
         toDoArray = new ArrayList<>();
-//        if (toDoPrefs.getBoolean("firstRun", true)) {
-//            SharedPreferences.Editor editor = toDoPrefs.edit();
-//            editor.putBoolean("firstRun", false);
-//            editor.apply();
-//
-//            TodoConstructor note1 = new TodoConstructor(true, "Task", new Date().toString(), new Date(), "Category1");
-//            toDoArray.add(note1);
-//            toDoArray.add(new TodoConstructor(true, "Task 2", new Date().toString(), new Date(), "Category2"));
-//            toDoArray.add(new TodoConstructor(true, "Task 3", new Date().toString(), new Date(), "Category3"));
-//
-//            for (TodoConstructor todoconstructor : toDoArray) {
-//                writeFile(todoconstructor);
-//            }
-//        } else {
-//            File[] filesDir = this.getFilesDir().listFiles();
-//            for (File file : filesDir) {
-//                FileInputStream inputStream = null;
-//                String title = file.getName();
-//                if (!title.startsWith("##")) {
-//                    continue;
-//                } else {
-//                    title = title.substring(2, title.length());
-//                }
-//
-//                Date date = new Date(file.lastModified());
-//                String DueDate = "";
-//                String text = "";
-//                try {
-//                    inputStream = openFileInput(title);
-//                    byte[] input = new byte[inputStream.available()];
-//                    while (inputStream.read(input) != -1) {
-//                    }
-//                    text += new String(input);
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                } finally {
-//
-//                    try {
-//                        inputStream.close();
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    } catch (NullPointerException e) {
-//                        e.printStackTrace();
-//                    }
-//                }
-//                    toDoArray.add(new TodoConstructor(false, title, DueDate, date, text));
-//                }
-//            }
-//        }
+        File fileDir = this.getFilesDir();
+        File todoFile = new File(filename + File.separator + filename);
+        if (todoFile.exists()) {
+            readTodos(todoFile);
+        }else{
+            categories.add(new Category("HOME", new ArrayList<TodoConstructor>()));
+            categories.add(new Category("WORK", new ArrayList<TodoConstructor>()));
+            categories.add(new Category("MISC", new ArrayList<TodoConstructor>()));
+
+            for(int i = 0; i < categories.size(); i++) {
+                categories.get(i).notes.add(new TodoConstructor(false, "Task 1", "Date", new Date(), "Category 1", "Time"));
+                categories.get(i).notes.add(new TodoConstructor(false, "Task 2", "Date", new Date(), "Category 2", "Time"));
+                categories.get(i).notes.add(new TodoConstructor(false, "Task 3", "Date", new Date(), "Category 3", "Time"));
+            }
+            writeTodos();
+        }
     }
 
+    private void readTodos(File todoFile) {
+        FileInputStream inputStream = null;
+        String todosText = "";
+        try {
+            inputStream = openFileInput(todoFile.getName());
+            byte[] input = new byte[inputStream.available()];
+            while (inputStream.read(input) != -1) {}
+            todosText = new String(input);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // Determine type of our collection
+            Type collectionType = new TypeToken<List<Category>>(){}.getType();
+            // Pull out our categories in a list
+            List<Category> categoryList = gson.fromJson(todosText, collectionType);
+            // Create a LinkedList that we can edit from our categories list and save it
+            // to our global categories
+            categories = new LinkedList(categoryList);
+        }
+    }
+    private void writeTodos() {
+        FileOutputStream outputStream = null;
+        try {
+            outputStream = openFileOutput(filename, Context.MODE_PRIVATE);
+            String json = gson.toJson(categories);
+            byte[] bytes = json.getBytes();
+            outputStream.write(bytes);
+            outputStream.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                outputStream.close();
+            } catch (Exception ignored) {}
+        }
+    }
     private void writeFile(TodoConstructor toDoItems) {
         FileOutputStream outputStream = null;
         try {
             outputStream = openFileOutput("##" + toDoItems.getNoteTitle(), Context.MODE_PRIVATE);
             outputStream.write(toDoItems.getCategory().getBytes());
             //need to add date modified, category, and any other items.
-            outputStream.flush();
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -218,5 +245,14 @@ public class MainActivity extends AppCompatActivity {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
+    }
+    private void updateAllItems() {
+        allItems.clear();
+        for(int i = 0; i < categories.size(); i++){
+            allItems.add(categories.get(i).getName());
+            for(int j = 0; j < categories.get(i).notes.size(); j++){
+                allItems.add(categories.get(i).notes.get(j));
+            }
+        }
     }
 }

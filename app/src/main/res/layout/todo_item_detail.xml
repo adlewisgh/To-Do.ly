@@ -16,18 +16,6 @@
         android:textAlignment="center"
         android:hint="Task Name" />
 
-    <!--<EditText-->
-        <!--android:layout_width="wrap_content"-->
-        <!--android:layout_height="wrap_content"-->
-        <!--android:text="Due Date"-->
-        <!--android:ems="10"-->
-        <!--android:layout_below="@+id/noteTitle"-->
-        <!--android:layout_alignStart="@+id/noteTitle"-->
-        <!--android:layout_marginTop="17dp"-->
-        <!--android:id="@+id/completionDueDate"-->
-        <!--android:textAlignment="center"-->
-        <!--android:hint="Due Date" />-->
-
     <Button
         android:text="Save Note"
         android:layout_width="wrap_content"
@@ -37,7 +25,7 @@
         android:layout_centerHorizontal="true" />
 
     <Button
-        android:text="Button"
+        android:text="Notifications"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_above="@+id/save"
@@ -72,12 +60,14 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Due Time"
+        android:textSize="20sp"
+        android:textAlignment="center"
         android:ems="10"
         android:id="@+id/due_time"
-        android:textAlignment="center"
         android:hint="Due Time"
+        android:onClick="showTimePickerDialog"
+        android:layout_marginTop="13dp"
+        android:text="Due Time"
         android:layout_below="@+id/due_date"
-        android:layout_alignStart="@+id/category"
-        android:onClick="showTimePickerDialog"/>
+        android:layout_centerHorizontal="true" />
 </RelativeLayout>

@@ -23,7 +23,6 @@ import android.widget.TimePicker;
 
 public class TodoDetailActivity extends AppCompatActivity {
     private EditText noteTitle;
-    private EditText completionDueTime;
     private EditText category;
     private TextView noteDueDate;
     private TextView noteDueTime;
